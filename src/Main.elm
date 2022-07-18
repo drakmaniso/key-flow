@@ -4,6 +4,10 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (..)
+import Json.Decode as D
+import Json.Encode as E
+import Storage
 import Url
 
 
@@ -30,6 +34,7 @@ main =
 type alias Model =
     { key : Nav.Key
     , page : Page
+    , settings : Int
     }
 
 
@@ -62,8 +67,9 @@ init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     ( { key = key
       , page = route url
+      , settings = 0
       }
-    , Cmd.none
+    , Storage.requestItem "settings"
     )
 
 
@@ -74,6 +80,8 @@ init flags url key =
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
+    | StorageChanged ( String, Maybe String )
+    | StorageSet ( String, String )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -92,6 +100,26 @@ update msg model =
             , Cmd.none
             )
 
+        StorageChanged ( key, value ) ->
+            if key == "settings" then
+                case value of
+                    Just val ->
+                        case D.decodeString D.int val of
+                            Ok v ->
+                                ( { model | settings = v }, Cmd.none )
+
+                            Err _ ->
+                                ( model, Nav.pushUrl model.key "#error" )
+
+                    Nothing ->
+                        ( { model | settings = -1 }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
+        StorageSet ( key, value ) ->
+            ( model, Storage.setItem ( key, value ) )
+
 
 
 -- SUBSCRIPTIONS
@@ -99,7 +127,9 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    Sub.batch
+        [ Storage.itemChanged StorageChanged
+        ]
 
 
 
@@ -115,7 +145,15 @@ view model =
                 h1 [] [ text "Home" ]
 
             Settings ->
-                h1 [] [ text "Settings" ]
+                div []
+                    [ h1 [] [ text "Settings" ]
+                    , p []
+                        [ text (" settings = " ++ String.fromInt model.settings) ]
+                    , button [ onClick (StorageSet ( "settings", 1 |> E.int |> E.encode 0 )) ]
+                        [ text "settings = 1" ]
+                    , button [ onClick (StorageSet ( "settings", 2 |> E.int |> E.encode 0 )) ]
+                        [ text "settings = 2" ]
+                    ]
 
             Error msg ->
                 h1 [] [ text ("Error: " ++ msg) ]

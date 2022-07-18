@@ -1,19 +1,15 @@
-const appVersion = 'v0.0.1';
-const cachedFiles = [
-    'index.html',
-    'main.js',
-];
+self.importScripts('version.js');
 
 
 self.addEventListener('install', (event) => {
-    console.log('[SW] Install');
+    console.log(`[SW] Installing version: "${version}"`);
     event.waitUntil((async () => {
-        const cache = await caches.open(appVersion);
+        const cache = await caches.open(version);
         console.log('[SW] Caching all files:');
-        for (const file of cachedFiles) {
+        for (const file of files) {
             console.log(`[SW]   "${file}"`);
         }
-        await cache.addAll(cachedFiles);
+        await cache.addAll(files);
     })());
 });
 
@@ -37,10 +33,11 @@ self.addEventListener('fetch', (event) => {
 
 
 self.addEventListener('activate', (event) => {
+    console.log(`[SW] Activating version: "${version}"`);
     event.waitUntil((async () => {
         const cacheNames = await caches.keys();
         await cacheNames
-            .filter(n => n != appVersion)
+            .filter(n => n != version)
             .map(async n => { await caches.delete(n) });
     })());
 });

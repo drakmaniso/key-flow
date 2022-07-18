@@ -11,22 +11,75 @@
 <body>
 
     <noscript>This application requires javascript.</noscript>
+    <script src="./version.js"></script>
     <script>
+
+
+        if (typeof version != 'undefined') {
+            console.log(`[JS] Running version: "${version}"`);
+        } else {
+            console.error('[JS] No version number!');
+        }
+
+
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
-        };
+        }
+
 
         navigator.storage
             .persist()
             .then((persisted) => {
                 if (persisted) {
-                    console.log('[JS] Storage is persisted.');
+                    console.log('[JS] Storage is persisted');
                 } else {
-                    console.log('[JS] *** Storage is NOT persisted!  ***');
+                    console.error('[JS] Storage is NOT persisted!');
                 }
             });
 
+
         var app = Elm.Main.init();
+
+
+        // Storage Ports
+
+
+        app.ports.setItem.subscribe(args => {
+            try {
+                [key, value] = args
+                localStorage.setItem(key, value);
+                app.ports.itemChanged.send([key, value]);
+            }
+            catch (err) {
+                console.error(`[JS] ports.setItem: ${err}`);
+            }
+        });
+
+
+        app.ports.requestItem.subscribe(key => {
+            const value = localStorage.getItem(key);
+            try {
+                app.ports.itemChanged.send([key, value]);
+            }
+            catch (err) {
+                console.error(`[JS] ports.requestItem: ${err}`)
+            }
+        });
+
+
+        window.addEventListener('storage', event => {
+            try {
+                if (event.key == null) {
+                    // Received when the whole local storage has been deleted...
+                    return;
+                }
+                app.ports.itemChanged.send([event.key, event.newValue]);
+            }
+            catch (err) {
+                console.error(`[JS] onStorage: ${err}`);
+            }
+        });
+
 
     </script>
 
